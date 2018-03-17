@@ -1,67 +1,142 @@
 import * as PIXI from 'pixi.js'
 
-import bgTile from './assets/iP4_BGtile.jpg'
-import ground from './assets/iP4_ground.png'
+const keysDown = {}
 
-var app = new PIXI.Application()
+window.addEventListener('keydown', e => {
+  keysDown[e.keyCode] = true
+})
+
+window.addEventListener('keyup', e => {
+  delete keysDown[e.keyCode]
+})
+
+let app = new PIXI.Application({
+  width: document.body.clientWidth,
+  height: document.body.clientHeight,
+  antialiasing: true,
+  transparent: false,
+  resolution: 1
+})
+
 document.body.appendChild(app.view)
 
-app.stop()
+const mapSize = 100
 
-// load spine data
-PIXI.loader.load(onAssetsLoaded)
+let tiles = []
 
-var postition = 0
-var background
-var background2
-var foreground
-var foreground2
+let player = {
+  x: 1,
+  y: 1,
+  lastx: 1,
+  lasty: 1
+}
 
 app.stage.interactive = true
 
-function onAssetsLoaded(loader, res) {
-  background = PIXI.Sprite.fromImage(bgTile)
-  background2 = PIXI.Sprite.fromImage(bgTile)
-
-  foreground = PIXI.Sprite.fromImage(ground)
-  foreground2 = PIXI.Sprite.fromImage(ground)
-  foreground.y = foreground2.y = 640 - foreground2.height
-
-  app.stage.addChild(background, background2, foreground, foreground2)
-
-  app.start()
+// Setting up resize
+window.onresize = event => {
+  app.renderer.resize(document.body.clientWidth, document.body.clientHeight)
 }
 
-app.ticker.add(function() {
-  postition += 10
+// Generating map
+for (let x = 0; x < mapSize; x++) {
+  tiles[x] = []
+  for (let y = 0; y < mapSize / 2; y++) {
+    let tile = {
+      passable: false,
+      gfx: new PIXI.Graphics()
+    }
 
-  background.x = -(postition * 0.6)
-  background.x %= 1286 * 2
-  if (background.x < 0) {
-    background.x += 1286 * 2
+    if (
+      x !== 0 &&
+      y !== 0 &&
+      x !== mapSize - 1 &&
+      y !== mapSize / 2 - 1 &&
+      (Math.round(Math.random() / 1.5) - 1) * -1 === 1
+    ) {
+      tile.passable = true
+    }
+
+    if (player.x === x && player.y === y) {
+      tile.gfx.beginFill(0x0000ff, 1)
+      tile.gfx.drawRect(x * 10, y * 10, 10, 10)
+    } else if (tile.passable) {
+      tile.gfx.beginFill(0x00ff00, 1)
+      tile.gfx.drawRect(x * 10, y * 10, 10, 10)
+    } else {
+      tile.gfx.beginFill(0xff0000, 1)
+      tile.gfx.drawRect(x * 10, y * 10, 10, 10)
+    }
+
+    tiles[x][y] = tile
+    app.stage.addChild(tile.gfx)
   }
-  background.x -= 1286
+}
 
-  background2.x = -(postition * 0.6) + 1286
-  background2.x %= 1286 * 2
-  if (background2.x < 0) {
-    background2.x += 1286 * 2
+app.ticker.add(delta => loop(delta))
+
+function loop(delta) {
+  if (keysDown[37]) {
+    tryMove(player, 'left')
   }
-  background2.x -= 1286
 
-  foreground.x = -postition
-  foreground.x %= 1286 * 2
-  if (foreground.x < 0) {
-    foreground.x += 1286 * 2
+  if (keysDown[38]) {
+    tryMove(player, 'up')
   }
-  foreground.x -= 1286
 
-  foreground2.x = -postition + 1286
-  foreground2.x %= 1286 * 2
-  if (foreground2.x < 0) {
-    foreground2.x += 1286 * 2
+  if (keysDown[39]) {
+    tryMove(player, 'right')
   }
-  foreground2.x -= 1286
-})
 
-document.querySelector('#app').innerHTML = Date.now()
+  if (keysDown[40]) {
+    tryMove(player, 'down')
+  }
+
+  // Draw tiles
+  if (player.x !== player.lastx && player.y !== player.lasty) {
+    let pTile = tiles[player.x][player.y]
+    let lTile = tiles[player.lastx][player.lasty]
+
+    if (lTile.passable) {
+      lTile.gfx.beginFill(0x00ff00, 1)
+      lTile.gfx.drawRect(player.lastx * 10, player.lasty * 10, 10, 10)
+    } else {
+      lTile.gfx.beginFill(0xff0000, 1)
+      lTile.gfx.drawRect(player.lastx * 10, player.lasty * 10, 10, 10)
+    }
+
+    pTile.gfx.beginFill(0x0000ff, 1)
+    pTile.gfx.drawRect(player.x * 10, player.y * 10, 10, 10)
+  }
+}
+
+function tryMove(player, direction) {
+  switch (direction) {
+    case 'up':
+      if (tiles[player.x][player.y - 1].passable) {
+        player.lasty = player.y
+        player.y--
+      }
+      break
+    case 'down':
+      if (tiles[player.x][player.y + 1].passable) {
+        player.lasty = player.y
+        player.y++
+      }
+      break
+    case 'left':
+      if (tiles[player.x - 1][player.y].passable) {
+        player.lastx = player.x
+        player.x--
+      }
+      break
+    case 'right':
+      if (tiles[player.x + 1][player.y].passable) {
+        player.lastx = player.x
+        player.x++
+      }
+      break
+    default:
+      break
+  }
+}
