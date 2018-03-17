@@ -1,0 +1,24 @@
+{
+  "name": "darkzone",
+  "version": "1.0.0",
+  "description": "Darkzone Game",
+  "main": "index.js",
+  "scripts": {
+    "start": "parcel src/index.html",
+    "build": "parcel build --public-url / src/index.html"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gigavoid/darkzone.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/gigavoid/darkzone/issues"
+  },
+  "homepage": "https://github.com/gigavoid/darkzone#readme",
+  "dependencies": {
+    "parcel-bundler": "^1.6.2"
+  }
+}
