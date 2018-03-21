@@ -1,4 +1,10 @@
 import * as PIXI from 'pixi.js'
+import * as LevelGen from './worldgen/gen.js'
+import * as Matter from 'matter-js'
+
+import impassTex from './assets/impass.png'
+import passTex from './assets/pass.png'
+import playerTex from './assets/player.png'
 
 const keysDown = {}
 
@@ -18,125 +24,136 @@ let app = new PIXI.Application({
   resolution: 1
 })
 
+let engine = Matter.Engine.create()
+let world = engine.world
+
 document.body.appendChild(app.view)
 
 const mapSize = 100
 
-let tiles = []
+let level
 
 let player = {
   x: 1,
-  y: 1,
-  lastx: 1,
-  lasty: 1
+  y: 1
 }
+
+app.stop()
+
+PIXI.loader.load(onAssetsLoaded)
 
 app.stage.interactive = true
 
-// Setting up resize
-window.onresize = event => {
-  app.renderer.resize(document.body.clientWidth, document.body.clientHeight)
+function onAssetsLoaded(loader, res) {
+  player.sprite = PIXI.Sprite.fromImage(playerTex)
+  player.sprite.x = 10
+  player.sprite.y = 10
+
+  level = LevelGen.generate(mapSize)
+
+  assignSprites(level.tiles)
+  assignHitboxes(level.tiles)
+
+  app.stage.addChild(player.sprite)
+  app.start()
 }
 
-// Generating map
-for (let x = 0; x < mapSize; x++) {
-  tiles[x] = []
-  for (let y = 0; y < mapSize / 2; y++) {
-    let tile = {
-      passable: false,
-      gfx: new PIXI.Graphics()
-    }
+function assignSprites(tiles) {
+  for (let x = 0; x < tiles.length; x++) {
+    for (let y = 0; y < tiles[x].length; y++) {
+      let tile = tiles[x][y]
 
-    if (
-      x !== 0 &&
-      y !== 0 &&
-      x !== mapSize - 1 &&
-      y !== mapSize / 2 - 1 &&
-      (Math.round(Math.random() / 1.5) - 1) * -1 === 1
-    ) {
-      tile.passable = true
-    }
+      if (tile.passable) {
+        tile.sprite = PIXI.Sprite.fromImage(passTex)
+      } else {
+        tile.sprite = PIXI.Sprite.fromImage(impassTex)
+      }
 
-    if (player.x === x && player.y === y) {
-      tile.gfx.beginFill(0x0000ff, 1)
-      tile.gfx.drawRect(x * 10, y * 10, 10, 10)
-    } else if (tile.passable) {
-      tile.gfx.beginFill(0x00ff00, 1)
-      tile.gfx.drawRect(x * 10, y * 10, 10, 10)
-    } else {
-      tile.gfx.beginFill(0xff0000, 1)
-      tile.gfx.drawRect(x * 10, y * 10, 10, 10)
-    }
+      tile.sprite.x = x * 10
+      tile.sprite.y = y * 10
 
-    tiles[x][y] = tile
-    app.stage.addChild(tile.gfx)
+      app.stage.addChild(tile.sprite)
+    }
   }
+}
+
+function assignHitboxes(tiles) {
+  let bodies = []
+
+  for (let x = 0; x < tiles.length; x++) {
+    for (let y = 0; y < tiles.length; y++) {
+      let tile = tiles[x][y]
+
+      if (!tile.passable) {
+        let rect = Matter.Bodies.rectangle(x * 10, y * 10, 10, 10, {
+          isStatic: true
+        })
+
+        tile.rect = rect
+
+        bodies.push(rect)
+      }
+    }
+  }
+
+  Matter.World.add(world, bodies)
 }
 
 app.ticker.add(delta => loop(delta))
 
 function loop(delta) {
-  if (keysDown[37]) {
+  if (keysDown[37] || keysDown[65]) {
     tryMove(player, 'left')
   }
 
-  if (keysDown[38]) {
+  if (keysDown[38] || keysDown[87]) {
     tryMove(player, 'up')
   }
 
-  if (keysDown[39]) {
+  if (keysDown[39] || keysDown[68]) {
     tryMove(player, 'right')
   }
 
-  if (keysDown[40]) {
+  if (keysDown[40] || keysDown[83]) {
     tryMove(player, 'down')
   }
 
-  // Draw tiles
-  if (player.x !== player.lastx && player.y !== player.lasty) {
-    let pTile = tiles[player.x][player.y]
-    let lTile = tiles[player.lastx][player.lasty]
-
-    if (lTile.passable) {
-      lTile.gfx.beginFill(0x00ff00, 1)
-      lTile.gfx.drawRect(player.lastx * 10, player.lasty * 10, 10, 10)
-    } else {
-      lTile.gfx.beginFill(0xff0000, 1)
-      lTile.gfx.drawRect(player.lastx * 10, player.lasty * 10, 10, 10)
-    }
-
-    pTile.gfx.beginFill(0x0000ff, 1)
-    pTile.gfx.drawRect(player.x * 10, player.y * 10, 10, 10)
+  if (keysDown[32] || keysDown[96]) {
+    tryMove(player, 'down')
   }
 }
 
 function tryMove(player, direction) {
   switch (direction) {
     case 'up':
-      if (tiles[player.x][player.y - 1].passable) {
-        player.lasty = player.y
+      if (world.tiles[player.x][player.y - 1].climbable) {
         player.y--
+        player.sprite.y--
       }
       break
     case 'down':
-      if (tiles[player.x][player.y + 1].passable) {
-        player.lasty = player.y
+      if (world.tiles[player.x][player.y + 1].passable) {
         player.y++
+        player.sprite.y++
       }
       break
     case 'left':
-      if (tiles[player.x - 1][player.y].passable) {
-        player.lastx = player.x
+      if (world.tiles[player.x - 1][player.y].passable) {
         player.x--
+        player.sprite.x--
       }
       break
     case 'right':
-      if (tiles[player.x + 1][player.y].passable) {
-        player.lastx = player.x
+      if (world.tiles[player.x + 1][player.y].passable) {
         player.x++
+        player.sprite.x++
       }
       break
     default:
       break
   }
+}
+
+window.onresize = event => {
+  app.renderer.resize(document.body.clientWidth, document.body.clientHeight)
 }
