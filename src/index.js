@@ -1,5 +1,5 @@
 import * as PIXI from 'pixi.js'
-import * as LevelGen from './worldgen/gen.js'
+import * as LevelGen from './levelgen/gen.js'
 import * as Matter from 'matter-js'
 
 import impassTex from './assets/impass.png'
@@ -81,7 +81,7 @@ function assignHitboxes(tiles) {
   let bodies = []
 
   for (let x = 0; x < tiles.length; x++) {
-    for (let y = 0; y < tiles.length; y++) {
+    for (let y = 0; y < tiles[x].length; y++) {
       let tile = tiles[x][y]
 
       if (!tile.passable) {
