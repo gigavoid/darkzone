@@ -33,10 +33,7 @@ const mapSize = 100
 
 let level
 
-let player = {
-  x: 1,
-  y: 1
-}
+let player = {}
 
 app.stop()
 
@@ -53,6 +50,9 @@ function onAssetsLoaded(loader, res) {
 
   assignSprites(level.tiles)
   assignHitboxes(level.tiles)
+
+  player.rigidBody = Matter.Bodies.rectangle(10, 10, 10, 10)
+  Matter.World.add(world, player.rigidBody)
 
   app.stage.addChild(player.sprite)
   app.start()
@@ -103,51 +103,43 @@ app.ticker.add(delta => loop(delta))
 
 function loop(delta) {
   if (keysDown[37] || keysDown[65]) {
-    tryMove(player, 'left')
+    tryMove(player, 'left', delta)
   }
 
   if (keysDown[38] || keysDown[87]) {
-    tryMove(player, 'up')
+    tryMove(player, 'up', delta)
   }
 
   if (keysDown[39] || keysDown[68]) {
-    tryMove(player, 'right')
+    tryMove(player, 'right', delta)
   }
 
   if (keysDown[40] || keysDown[83]) {
-    tryMove(player, 'down')
+    tryMove(player, 'down', delta)
   }
 
   if (keysDown[32] || keysDown[96]) {
-    tryMove(player, 'down')
+    tryMove(player, 'down', delta)
   }
+
+  Matter.Engine.update(engine, delta * 1000 / 60)
+
+  player.sprite.x = player.rigidBody.position.x
+  player.sprite.y = player.rigidBody.position.y
 }
 
-function tryMove(player, direction) {
+function tryMove(player, direction, delta) {
   switch (direction) {
     case 'up':
-      if (world.tiles[player.x][player.y - 1].climbable) {
-        player.y--
-        player.sprite.y--
-      }
+      Matter.Body.setVelocity(player.rigidBody, { y: -2, x: 0 })
       break
     case 'down':
-      if (world.tiles[player.x][player.y + 1].passable) {
-        player.y++
-        player.sprite.y++
-      }
       break
     case 'left':
-      if (world.tiles[player.x - 1][player.y].passable) {
-        player.x--
-        player.sprite.x--
-      }
+      Matter.Body.translate(player.rigidBody, { x: -delta, y: 0 })
       break
     case 'right':
-      if (world.tiles[player.x + 1][player.y].passable) {
-        player.x++
-        player.sprite.x++
-      }
+      Matter.Body.translate(player.rigidBody, { x: delta, y: 0 })
       break
     default:
       break
